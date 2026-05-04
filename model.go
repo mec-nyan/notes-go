@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -13,8 +14,8 @@ type model struct {
 	Data
 	Focused int
 	Mode
-	Previous string
-	NewNote  string
+	Previous rune
+	NewNote  []rune
 	Size
 }
 
@@ -91,33 +92,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case Insert:
-
 			switch msg.String() {
-
-			case "enter", "\n":
-				if m.Previous == msg.String() {
-					// Save note on double <enter>.
-					newNote := Note{
-						Content: m.NewNote,
-					}
-					m.NewNote = ""
-					m.Previous = ""
-					m.Notes = append(m.Notes, newNote)
-					m.Mode = Normal
-				} else {
-					m.NewNote += msg.String()
-					m.Previous = msg.String()
-				}
-
-			case "\x1b", "esc":
-				m.NewNote = ""
-				m.Previous = ""
+			case "enter":
+				m.Notes = append(m.Notes, Note{Content: string(m.NewNote)})
+				m.NewNote = nil
 				m.Mode = Normal
 
+			case "esc":
+				m.NewNote = nil
+				m.Mode = Normal
+
+			// Basic line editing.
+			case "backspace":
+				m.NewNote = m.NewNote[:len(m.NewNote)-1]
+
+			case "ctrl+u":
+				m.NewNote = nil
+
+			case "ctrl+w":
+				for len(m.NewNote) > 0 {
+					m.NewNote = m.NewNote[:len(m.NewNote)-1]
+					if len(m.NewNote) == 0 {
+						break
+					}
+
+					last := m.NewNote[len(m.NewNote)-1]
+					if last == ' ' {
+						break
+					}
+				}
+
 			default:
-				// TOOD: Accept only valid characters (i.e. not F1).
-				m.NewNote += msg.String()
-				m.Previous = msg.String()
+				if unicode.IsGraphic(msg.Code) {
+					m.NewNote = append(m.NewNote, []rune(msg.Text)...)
+				}
 			}
 
 		default:
@@ -158,7 +166,7 @@ func (m model) View() tea.View {
 
 	case Insert:
 
-		fmt.Fprintf(&s, "\nNew note:\n\n > %s", string(m.NewNote))
+		fmt.Fprintf(&s, "\nNew note:\n\n > %s█", string(m.NewNote))
 
 	default:
 	}
