@@ -152,7 +152,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.Focused > 0 {
 					m.Focused--
 				}
-				m.Mode = Deleted
+				m.Mode = Normal
 
 			case "esc":
 				m.Mode = Normal
@@ -160,9 +160,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			default:
 				m.Mode = Normal
 			}
-
-		case Deleted:
-			m.Mode = Normal
 
 		default:
 		}
@@ -198,40 +195,64 @@ func (m model) View() tea.View {
 		Foreground(lipgloss.White)
 
 	warningStyle := lipgloss.NewStyle().
+		Width(m.Width-4).
 		Foreground(lipgloss.Red).
-		PaddingTop(1).
-		PaddingLeft(2).
-		MarginBottom(1)
+		Italic(true).
+		Border(lipgloss.BlockBorder(), false, false, false, true).
+		BorderForeground(lipgloss.Red).
+		Padding(0, 2).
+		Margin(1, 2)
 
 	title := titleStyle.Render("== Notes ==")
 
+	// Show title in default style.
 	notes := []string{title}
 
-	switch m.Mode {
-	case Normal:
-		for i, note := range m.Notes {
-			if i == m.Focused {
-				notes = append(notes, focusedNoteStyle.Render(note.Content))
-			} else {
-				notes = append(notes, noteStyle.Render(note.Content))
+	// Add the notes. Highlight the focused notes according to current mode.
+	var showStyle lipgloss.Style
+
+	for i, note := range m.Notes {
+		if i == m.Focused {
+			switch m.Mode {
+			case ConfirmDelete:
+				// Highilght the note about to be deleted (or not).
+				showStyle = deleteStyle
+				notes = append(notes, warningStyle.Render(
+					"  Delete this note? You want be able to recover it later.\n\n"+
+						"Hit <Escape> to cancel. <Enter> (or 'y') to confirm deletion."))
+			case Insert:
+				// When in Insert mode, the focus is on the note being inserted.
+				showStyle = noteStyle
+			default:
+				showStyle = focusedNoteStyle
 			}
+		} else {
+			showStyle = noteStyle
 		}
 
+		notes = append(notes, showStyle.Render(note.Content))
+	}
+
+	switch m.Mode {
 	case Insert:
-		notes = append(notes, newNoteStyle.Render(fmt.Sprintf("New note:\n\n%s█", string(m.NewNote))))
+		// Add the new input field where the new note will be.
+		notes = append(notes, newNoteStyle.Render(fmt.Sprintf(
+			"New note:\n\n%s█", string(m.NewNote))))
 
 	case ConfirmDelete:
-		notes = append(notes, warningStyle.Render("Delete this note?\nThis action can't be undone  ."))
-		notes = append(notes, deleteStyle.Render(m.Notes[m.Focused].Content))
-		notes = append(notes, warningStyle.Render("Press 'y' or <enter> to confirm. <esc> to cancel."))
 
-	case Deleted:
-		notes = append(notes, warningStyle.Render("Note deleted. Press any key to continue."))
+	// TODO: Show a message at the bottom.
+	// case Deleted:
+	// 	notes = append(notes, warningStyle.Render("Note deleted."))
+
+	case Normal:
+		// TODO: Normal mode status bar, etc.
 
 	default:
 	}
 
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, notes...))
+	v := tea.NewView(lipgloss.JoinVertical(
+		lipgloss.Left, notes...))
 
 	v.AltScreen = true
 
