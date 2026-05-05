@@ -136,7 +136,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// TODO: Better error handling.
 					err := SaveNotes(&m.Data, m.file)
 					if err != nil {
-						log.Fatalf("Error saving notes: %v", err)
+						log.Fatalf("error saving notes: %v", err)
 					}
 				} else {
 					// NOTE: Maybe a more descriptive name here...
@@ -180,6 +180,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter", "y":
 				// NOTE: Move this logic to a method (i.e. Notes.delete(n)).
+				// 1. Delete the note 'in memory'.
 				if len(m.Notes) == 1 {
 					m.Notes = nil
 				} else if m.Focused == 0 {
@@ -191,6 +192,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				if m.Focused > 0 {
 					m.Focused--
+				}
+				// 2. Save changes to file.
+				err := SaveNotes(&m.Data, m.file)
+				if err != nil {
+					log.Fatalf("error saving changes to file: %v", err)
 				}
 				m.Mode = Normal
 
