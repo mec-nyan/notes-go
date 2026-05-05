@@ -2,20 +2,23 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
+// model is the state of our app.
 type model struct {
 	Options
 	Data
 	Focused int
 	Mode
-	Previous rune
-	NewNote  []rune
 	Size
+	// This will be in their own struct in a future.
+	NewNote []rune
+	ConfirmInsert
 }
 
 type Mode int
@@ -31,6 +34,27 @@ const (
 type Size struct {
 	Width  int
 	Height int
+}
+
+type ConfirmInsert struct {
+	First, Second bool
+}
+
+func (c *ConfirmInsert) Set() {
+	if !c.First {
+		c.First = true
+	} else if !c.Second {
+		c.Second = true
+	}
+}
+
+func (c *ConfirmInsert) UnSet() {
+	c.First = false
+	c.Second = false
+}
+
+func (c *ConfirmInsert) Confirm() bool {
+	return c.First && c.Second
 }
 
 func initialModel(opts Options) model {
@@ -100,11 +124,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case Insert:
 			switch msg.String() {
 			case "enter":
-				m.Notes = append(m.Notes, Note{Content: string(m.NewNote)})
-				m.NewNote = nil
-				m.Mode = Normal
-				// Focus the last added item.
-				m.Focused = len(m.Notes) - 1
+				if m.Confirm() {
+					content := strings.TrimSpace(string(m.NewNote))
+					m.Notes = append(m.Notes, Note{Content: content})
+					m.NewNote = nil
+					m.Mode = Normal
+					// Focus the last added item.
+					m.Focused = len(m.Notes) - 1
+					m.UnSet()
+					// TODO: Save note to file!
+				} else {
+					// NOTE: Maybe a more descriptive name here...
+					m.Set()
+					// We trim the extra whitespace on note insertion.
+					m.NewNote = append(m.NewNote, '\n')
+				}
 
 			case "esc":
 				m.NewNote = nil
@@ -132,6 +166,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			default:
 				if unicode.IsGraphic(msg.Code) {
+					m.UnSet()
 					m.NewNote = append(m.NewNote, []rune(msg.Text)...)
 				}
 			}
@@ -233,23 +268,14 @@ func (m model) View() tea.View {
 		notes = append(notes, showStyle.Render(note.Content))
 	}
 
-	switch m.Mode {
-	case Insert:
+	if m.Mode == Insert {
 		// Add the new input field where the new note will be.
 		notes = append(notes, newNoteStyle.Render(fmt.Sprintf(
 			"New note:\n\n%s█", string(m.NewNote))))
 
-	case ConfirmDelete:
-
-	// TODO: Show a message at the bottom.
-	// case Deleted:
-	// 	notes = append(notes, warningStyle.Render("Note deleted."))
-
-	case Normal:
-		// TODO: Normal mode status bar, etc.
-
-	default:
 	}
+
+	// TODO: Show a message at the bottom when a note has been deleted.
 
 	v := tea.NewView(lipgloss.JoinVertical(
 		lipgloss.Left, notes...))
