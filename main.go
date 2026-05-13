@@ -7,7 +7,13 @@ import (
 )
 
 func main() {
-	opts := parseArgs()
+	// App setup:
+	//
+	// Get command line arguments, if any:
+	opts, err := parseArgs()
+	if err != nil {
+		log.Fatalf("initialisation error: %v", err)
+	}
 
 	app := tea.NewProgram(initialModel(opts))
 
