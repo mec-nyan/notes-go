@@ -8,7 +8,7 @@ A cute, simple note-taking app for the terminal.
 
 
 Demo:
-![simple_demo](./demos/banner.webp)
+![simple_demo](./demos/demo.gif)
 
 
 ## Roadmap
@@ -36,4 +36,5 @@ Demo:
 - [ ] Backup file.
 - [ ] Emoji chooser.
   - [ ] Icon/symbol chooser (Unicode/Nerdfont/other icons).
+- [ ] Fix the demo/show emojis.
 - [ ] Rewrite it in Rust :crab:.
